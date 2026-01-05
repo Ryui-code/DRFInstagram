@@ -1,10 +1,13 @@
-from rest_framework import generics, permissions, status
+from rest_framework import permissions, status
 from rest_framework.generics import GenericAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from .models import *
 from rest_framework import viewsets
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.filters import OrderingFilter, SearchFilter
+from .filter import PostFilterSet, UserFilterSet
 from .serializers import (
 FollowSerializer,
 RegisterSerializer,
@@ -75,6 +78,9 @@ class ProfileViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = UserProfile.objects.all()
     serializer_class = RegisterSerializer
     permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
+    search_fields = ['username']
+    filterset_class = UserFilterSet
 
     def get_queryset(self):
         return UserProfile.objects.filter(id=self.request.user.id)
@@ -91,6 +97,9 @@ class PostViewSet(viewsets.ModelViewSet):
     queryset = Post.objects.all()
     serializer_class = PostSerializer
     permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
+    search_fields = ['user', 'hashtag']
+    filterset_class = PostFilterSet
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
