@@ -11,7 +11,7 @@ class UserProfile(AbstractUser):
     token = models.CharField(max_length=16, null=True, blank=True, editable=False, unique=True)
 
     def __str__(self):
-        return self.username
+        return f'@{self.username}'
 
 class Follow(models.Model):
     follower = models.ForeignKey(UserProfile, related_name='followers', on_delete=models.CASCADE)
