@@ -69,3 +69,15 @@ class CommentLike(models.Model):
 
     def __str__(self):
         return f'{self.comment.id} - {self.like}'
+
+class Chat(models.Model):
+    chats = models.ManyToManyField(UserProfile)
+    created_date = models.DateField(auto_now_add=True)
+
+class Message(models.Model):
+    chat = models.ForeignKey(Chat, on_delete=models.CASCADE)
+    author = models.ForeignKey(UserProfile, on_delete=models.CASCADE)
+    text = models.TextField(null=True, blank=True)
+    image = models.ImageField(null=True, blank=True)
+    video = models.FileField(null=True, blank=True)
+    texted = models.DateTimeField(auto_now_add=True)

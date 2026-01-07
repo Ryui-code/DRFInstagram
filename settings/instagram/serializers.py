@@ -4,7 +4,6 @@ from rest_framework.exceptions import ValidationError
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 from .models import *
-import secrets
 
 class RegisterSerializer(serializers.ModelSerializer):
     token = serializers.CharField(read_only=True)
@@ -25,34 +24,56 @@ class RegisterSerializer(serializers.ModelSerializer):
             'token'
         ]
 
-    def create(self, validated_data):
-        validated_data['token'] = secrets.token_hex(16)
-        user = UserProfile.objects.create_user(**validated_data)
+    def create(self, validate_data):
+        user = UserProfile.objects.create_user(**validate_data)
         return user
+
+    def to_representation(self, instance):
+        refresh = RefreshToken.for_user(instance)
+        return {
+            'user': {'username': instance.username,
+                     'email': instance.email,
+            },
+            'access': str(refresh.access_token),
+            'refresh': str(refresh)
+        }
 
 class LoginSerializer(serializers.Serializer):
     username = serializers.CharField()
-    password = serializers.CharField()
+    password = serializers.CharField(write_only=True)
 
     def validate(self, attrs):
         user = authenticate(username=attrs['username'], password=attrs['password'])
         if not user:
-            raise ValidationError({'detail': 'Invalid credentials'})
+            raise ValidationError({'detail': 'Invalid credentials.'})
         return {'user': user}
 
+    def to_representation(self, instance):
+        refresh = RefreshToken.for_user(instance)
+        return {
+            'user': {
+                'username': instance. username,
+                'email': instance.email,
+            },
+            'access': str(refresh.access_token),
+            'refresh': str(refresh),
+        }
+
 class LogoutSerializer(serializers.Serializer):
-    token = serializers.CharField()
+    refresh = serializers.CharField(required=True)
 
-    def validate(self, attrs):
-        self.token = attrs['token']
-        return attrs
-
-    def save(self, **kwargs):
+    def validate(self, data):
+        refresh_token = data.get('refresh')
         try:
-            token = RefreshToken(self.token)
-            token.blacklist()
+            token = RefreshToken(refresh_token)
+            return token
         except TokenError:
-            raise ValidationError({'detail': 'Invalid token.'})
+            raise serializers.ValidationError({'detail': 'Недействительный токен.'})
+
+    def save(self):
+        refresh_token = self.validated_data['refresh']
+        token = RefreshToken(refresh_token)
+        token.blacklist()
 
 class FollowSerializer(serializers.ModelSerializer):
     class Meta:

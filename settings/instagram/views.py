@@ -1,13 +1,14 @@
-from rest_framework import permissions, status
-from rest_framework.generics import GenericAPIView
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
+from rest_framework import viewsets, generics, permissions, status
 from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework_simplejwt.exceptions import TokenError
 from .models import *
-from rest_framework import viewsets
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import OrderingFilter, SearchFilter
-from .filter import PostFilterSet, UserFilterSet
+from .filter import UserFilterSet, PostFilterSet
+from rest_framework.response import Response
+from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.tokens import RefreshToken
 from .serializers import (
 FollowSerializer,
 RegisterSerializer,
@@ -19,60 +20,42 @@ CommentSerializer,
 CommentLikeSerializer
 )
 
-class RegisterView(GenericAPIView):
+class RegisterView(generics.CreateAPIView):
     serializer_class = RegisterSerializer
-    permission_classes = [permissions.AllowAny]
 
-    def post(self, request):
+    def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
-        response = Response({
-            "id": user.id,
-            "username": user.username,
-            "email": user.email,
-            "token": user.token,
-        }, status=status.HTTP_201_CREATED)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-        response.set_cookie(
-            key='auth_token',
-            value=user.token,
-            httponly=True,
-            secure=True,
-            samesite='Strict'
-        )
-        return response
 
-class LoginView(GenericAPIView):
-    permission_classes = [permissions.AllowAny]
+class CustomLoginView(TokenObtainPairView):
     serializer_class = LoginSerializer
 
-    def post(self, request):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        user = serializer.validated_data['user']
-        response = Response({
-            "id": user.id,
-            "username": user.username,
-            "token": user.token
-        }, status=status.HTTP_200_OK)
+    def post(self, request, *args, **kwargs):
+        serializer=self.get_serializer(data=request.data)
+        try:
+            serializer.is_valid(raise_exception=True)
+        except Exception:
+            return Response({'detail': 'Invalid credentials.'}, status=status.HTTP_401_UNAUTHORIZED)
+        user = serializer.validated_data
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
-        response.set_cookie(
-            key='auth_token',
-            value=user.token,
-            httponly=True,
-            secure=True,
-            samesite='Strict'
-        )
-        return response
 
 class LogoutView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
-    def get(self, request):
-        response = Response({"detail": "Successfully logged out."}, status=status.HTTP_200_OK)
-        response.delete_cookie("auth_token")
-        return response
+    def post(self, request):
+        try:
+            refresh_token = request.data.get('refresh')
+            if not refresh_token:
+                return Response({'detail': 'No refresh token.'}, status=status.HTTP_400_BAD_REQUEST)
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+            return Response({'detail': 'Successfully logged out.'}, status=status.HTTP_200_OK)
+        except TokenError as e:
+            return Response({'detail': 'Invalid token.'}, status=status.HTTP_400_BAD_REQUEST)
 
 class ProfileViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = UserProfile.objects.all()
