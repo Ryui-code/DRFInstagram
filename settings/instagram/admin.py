@@ -12,7 +12,7 @@ class UserAdmin(UserAdmin):
             ),
         }),
     ]
-    readonly_fields = ['registered_date', 'token']
+    readonly_fields = ['registered_date']
 
 admin.site.register(Follow)
 admin.site.register(Post)

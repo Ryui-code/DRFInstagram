@@ -6,7 +6,6 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from .models import *
 
 class RegisterSerializer(serializers.ModelSerializer):
-    token = serializers.CharField(read_only=True)
     password = serializers.CharField(write_only=True)
     registered_date = serializers.DateField(read_only=True)
 
@@ -21,7 +20,6 @@ class RegisterSerializer(serializers.ModelSerializer):
             'hashtag',
             'link',
             'registered_date',
-            'token'
         ]
 
     def create(self, validate_data):
@@ -46,14 +44,11 @@ class LoginSerializer(serializers.Serializer):
         user = authenticate(username=attrs['username'], password=attrs['password'])
         if not user:
             raise ValidationError({'detail': 'Invalid credentials.'})
-        return {'user': user}
-
-    def to_representation(self, instance):
-        refresh = RefreshToken.for_user(instance)
+        refresh = RefreshToken.for_user(user)
         return {
             'user': {
-                'username': instance. username,
-                'email': instance.email,
+                'username': user.username,
+                'email': user.email,
             },
             'access': str(refresh.access_token),
             'refresh': str(refresh),

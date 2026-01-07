@@ -8,7 +8,6 @@ class UserProfile(AbstractUser):
     link = models.URLField(null=True, blank=True)
     status = models.CharField(choices=[('Simple', 'Simple'), ('Pro', 'Pro')])
     registered_date = models.DateField(auto_now_add=True)
-    token = models.CharField(max_length=16, null=True, blank=True, editable=False, unique=True)
 
     def __str__(self):
         return f'@{self.username}'
