@@ -3,7 +3,10 @@ services:
   instagram_parody:
     build: .
     command: >
-      bash -c "./manage.py collectstatic --noinput && ./manage.py makemigrations && ./manage.py migrate && gunicorn -b 0.0.0.0:8000 instagram.wsgi:application"
+      bash -c "./manage.py collectstatic --noinput && 
+               ./manage.py makemigrations && 
+               ./manage.py migrate && 
+               gunicorn -b 0.0.0.0:8000 instagram.wsgi:application"
     volumes:
       - .:/app
       - static_volume:/app/static
@@ -11,7 +14,8 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
   db:
     image: postgres:latest
@@ -21,7 +25,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql
 
   nginx:
     build: nginx
