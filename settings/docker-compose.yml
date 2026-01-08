@@ -24,7 +24,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
 
   nginx:
-    build: ../nginx
+    build: nginx
     ports:
       - "80:80"
     volumes:
