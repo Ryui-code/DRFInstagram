@@ -1,14 +1,12 @@
 from rest_framework import viewsets, generics, permissions, status
-from rest_framework.views import APIView
+from rest_framework.generics import GenericAPIView
 from rest_framework.permissions import IsAuthenticated
-from rest_framework_simplejwt.exceptions import TokenError
 from .models import *
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import OrderingFilter, SearchFilter
 from .filter import UserFilterSet, PostFilterSet
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
-from rest_framework_simplejwt.tokens import RefreshToken
 from .serializers import (
 FollowSerializer,
 RegisterSerializer,
@@ -17,7 +15,8 @@ PostSerializer,
 PostContentSerializer,
 PostLikeSerializer,
 CommentSerializer,
-CommentLikeSerializer
+CommentLikeSerializer,
+LogoutSerializer
 )
 
 class RegisterView(generics.CreateAPIView):
@@ -40,19 +39,14 @@ class LoginView(TokenObtainPairView):
             return Response({'detail': 'Invalid credentials.'}, status=status.HTTP_401_UNAUTHORIZED)
         return Response(serializer.validated_data, status=status.HTTP_200_OK)
 
-class LogoutView(APIView):
-    permission_classes = [IsAuthenticated]
+class LogoutView(GenericAPIView):
+    serializer_class = LogoutSerializer
 
-    def post(self, request):
-        try:
-            refresh_token = request.data.get('refresh')
-            if not refresh_token:
-                return Response({'detail': 'No refresh token.'}, status=status.HTTP_400_BAD_REQUEST)
-            token = RefreshToken(refresh_token)
-            token.blacklist()
-            return Response({'detail': 'Successfully logged out.'}, status=status.HTTP_200_OK)
-        except TokenError as e:
-            return Response({'detail': 'Invalid token.'}, status=status.HTTP_400_BAD_REQUEST)
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({"detail": "Вы успешно вышли из системы."}, status=status.HTTP_205_RESET_CONTENT)
 
 class ProfileViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = UserProfile.objects.all()
