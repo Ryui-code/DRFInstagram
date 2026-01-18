@@ -1,74 +1,37 @@
 from django.contrib.auth import authenticate
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
-from rest_framework_simplejwt.exceptions import TokenError
-from rest_framework_simplejwt.tokens import RefreshToken
 from .models import *
 
 class RegisterSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True)
-    registered_date = serializers.DateField(read_only=True)
+    password = serializers.CharField(write_only=True, min_length=6)
 
     class Meta:
         model = UserProfile
-        fields = [
-            'username',
-            'password',
-            'email',
-            'avatar',
-            'bio',
-            'hashtag',
-            'link',
-            'registered_date',
-        ]
+        fields = ("id", "username", "email", "password")
 
-    def create(self, validate_data):
-        user = UserProfile.objects.create_user(**validate_data)
+    def create(self, validated_data):
+        user = UserProfile.objects.create_user(
+            username=validated_data["username"],
+            email=validated_data.get("email"),
+            password=validated_data["password"]
+        )
         return user
 
-    def to_representation(self, instance):
-        refresh = RefreshToken.for_user(instance)
-        return {
-            'user': {'username': instance.username,
-                     'email': instance.email,
-            },
-            'access': str(refresh.access_token),
-            'refresh': str(refresh)
-        }
 
 class LoginSerializer(serializers.Serializer):
     username = serializers.CharField()
     password = serializers.CharField(write_only=True)
 
     def validate(self, attrs):
-        user = authenticate(username=attrs['username'], password=attrs['password'])
-        if not user or not user.is_active:
-            raise ValidationError({'detail': 'Invalid credentials.'})
-        refresh = RefreshToken.for_user(user)
-        return {
-            'user': {
-                'username': user.username,
-                'email': user.email,
-            },
-            'access': str(refresh.access_token),
-            'refresh': str(refresh),
-        }
+        username = attrs.get("username")
+        password = attrs.get("password")
+        user = authenticate(username=username, password=password)
+        if not user:
+            raise ValidationError("Invalid credentials.")
+        attrs["user"] = user
+        return attrs
 
-class LogoutSerializer(serializers.Serializer):
-    refresh = serializers.CharField(required=True)
-
-    def validate(self, attrs):
-        refresh_token = attrs.get('refresh')
-        try:
-            token = RefreshToken(refresh_token)
-            return token
-        except TokenError:
-            raise serializers.ValidationError({'detail': 'Недействительный токен.'})
-
-    def save(self):
-        refresh_token = self.validated_data['refresh']
-        token = RefreshToken(refresh_token)
-        token.blacklist()
 
 class FollowSerializer(serializers.ModelSerializer):
     class Meta:
