@@ -42,7 +42,7 @@ class LoginSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         user = authenticate(username=attrs['username'], password=attrs['password'])
-        if not user:
+        if not user or not user.is_active:
             raise ValidationError({'detail': 'Invalid credentials.'})
         refresh = RefreshToken.for_user(user)
         return {
@@ -57,8 +57,8 @@ class LoginSerializer(serializers.Serializer):
 class LogoutSerializer(serializers.Serializer):
     refresh = serializers.CharField(required=True)
 
-    def validate(self, data):
-        refresh_token = data.get('refresh')
+    def validate(self, attrs):
+        refresh_token = attrs.get('refresh')
         try:
             token = RefreshToken(refresh_token)
             return token
